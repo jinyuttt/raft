@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using RaftCore.StateMachine;
 
-namespace RaftCore.StateMachine.Implementations {
+namespace RaftCore.StateMachine.Implementations
+{
     /// <summary>
     /// Represents a dictionary of string to ints as a state machine.
     /// </summary>

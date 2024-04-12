@@ -38,7 +38,11 @@ namespace ConsoleApp1
                 Console.ReadLine();
                 var node = dic["8081"];
                 Console.WriteLine(node.NodeState);
-                node.MakeRequest("SET X 8081");
+                node.MakeRequest("create test test.db");
+                node.MakeRequest("Set test 8081");
+                node.MakeRequest("delete test 8081");
+                node.MakeRequest("clear test 8081");
+                //  node.MakeRequest("Set X 8081");
                 //node = dic["8082"];
                 //Console.WriteLine(node.NodeState);
                 ////node.MakeRequest("8082");
@@ -77,7 +81,7 @@ namespace ConsoleApp1
 
 
 
-                var node = new RaftNode(num, new DictionaryStateMachine());
+                var node = new RaftNode(num, new LiteDBStateMachine());
                 NetWorkServer.CreateTcpServer(node, port);
                 node.Configure(cluster);
                 node.Run();
