@@ -81,7 +81,7 @@ namespace ConsoleApp1
 
 
 
-                var node = new RaftNode(num, new LiteDBStateMachine());
+                var node = new RaftNode(num, new NumeralStateMachine());
                 NetWorkServer.CreateTcpServer(node, port);
                 node.Configure(cluster);
                 node.Run();
