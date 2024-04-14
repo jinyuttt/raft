@@ -4,7 +4,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
 {
     internal class TcpDamil
     {
-      static  SnowflakeIdGenerator snowflake = new SnowflakeIdGenerator();
+      static readonly SnowflakeIdGenerator snowflake = new SnowflakeIdGenerator();
         public static byte[] BuildMessage(byte[] message,ref long id)
         {
             byte[] result = new byte[message.Length + 4 + 8];
@@ -36,6 +36,22 @@ namespace RaftCore.Connections.NodeServer.TcpServers
             var bytes = memory.Slice(0, 8).ToArray();
             id = BitConverter.ToInt64(bytes);
             return memory.Slice(8).ToArray();
+        }
+
+
+        //
+
+      
+
+      
+        public static byte[] GetMessage(Memory<byte> memory,int len, ref long id)
+        {
+
+            // Memory<byte> memory = new Memory<byte>(message);
+            // var bytes = memory.Slice(0, 8).ToArray();
+            //  id = BitConverter.ToInt64(bytes);
+            id = BitConverter.ToInt64(memory.Slice(0,8).Span);
+            return memory.Slice(8, len-8).ToArray();
         }
     }
 }

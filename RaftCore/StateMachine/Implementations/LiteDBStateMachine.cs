@@ -5,10 +5,14 @@ using System.Collections.Generic;
 
 namespace RaftCore.StateMachine.Implementations
 {
+
+    /// <summary>
+    /// 测试LiteDB实现，具体需要根据业务开发
+    /// </summary>
     public class LiteDBStateMachine : IRaftStateMachine
     {
-      
-        ConcurrentDictionary<string,string> dic=new ConcurrentDictionary<string,string>();
+
+        readonly ConcurrentDictionary<string, string> dic = new ConcurrentDictionary<string, string>();
 
         private void Add(string key, string value)
         {
@@ -60,6 +64,14 @@ namespace RaftCore.StateMachine.Implementations
             }
         }
 
+        private void Create(string key)
+        {
+           int num=int.Parse(key.Trim());
+            for (int i = 0; i < num; i++)
+            {
+                dic[i.ToString()] = i.ToString() + ".db";
+            }
+        }
         public void Apply(string command)
         {
             var commands = command.Split(" ",StringSplitOptions.RemoveEmptyEntries);
@@ -79,6 +91,9 @@ namespace RaftCore.StateMachine.Implementations
                     break;
                 case "DROP":
                     DropDB(commands[1]);
+                    break;
+                case "TEST":
+                    Create(commands[1]);
                     break;
                 default:
                     break;

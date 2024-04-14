@@ -18,7 +18,7 @@ namespace RaftCore.StateMachine.Implementations {
             try {
                 var delta = int.Parse(command);
                 state += delta;
-                Console.WriteLine($"statemachine:{command}");
+               // Console.WriteLine($"statemachine:{command}");
             } catch (System.FormatException) {
                 ; // Don't apply bad requests
             } catch (System.OverflowException) {

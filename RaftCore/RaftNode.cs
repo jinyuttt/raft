@@ -59,7 +59,7 @@ namespace RaftCore {
         /// </summary>
        public List<LogEntry> Log { get; private set; }
 
-       // public ConcurrentBag<LogEntry> LogEntries { get; private set; }
+      
 
         private readonly object thisLock = new object();
 
@@ -136,8 +136,8 @@ namespace RaftCore {
         public RaftNode(uint nodeId, IRaftStateMachine stateMachine) {
             this.NodeId = nodeId;
             this.StateMachine = stateMachine;
-              this.Log = new List<LogEntry>();
-          //  LogEntries = new ConcurrentBag<LogEntry>();
+            this.Log = new List<LogEntry>();
+        
 
               electionTimer = new Timer(TriggerElection);
             heartbeatTimer = new Timer(SendHeartbeats);
@@ -239,7 +239,9 @@ namespace RaftCore {
                 // If an existing entry conflicts with a new one (same index
                 // but different terms), delete the existing entry and all that
                 // follow it (§5.3)
-                Log = Log.Take(entries[0].Index).ToList();
+               // Log = Log.Take(entries[0].Index).ToList();
+                Log= Log.Take(entries[0].Index).ToList();
+             
 
                 //// Append any new entries not already in the log
                 Log.AddRange(entries);

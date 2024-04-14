@@ -19,4 +19,8 @@
     <PackageReference Include="LiteDB" Version="5.0.19" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Connections\TcpNet\" />
+  </ItemGroup>
+
 </Project>
