@@ -62,10 +62,7 @@ namespace RaftCore.Connections.Implementations
             var req = new Dictionary<string, string> { { "request", command } };
             var reqj = Util.SerializeJson(req);
             var reqmsg = Util.Serialize(new TcpMessage() { Cmd = "makerequest", Content = reqj });
-          var rsp=  await client.SendGetReply(reqmsg,TimeSpan.FromSeconds(10));
-
-
-
+            var rsp = await client.SendGetReply(reqmsg, TimeSpan.FromSeconds(10));
         }
 
         private async Task<Result<bool>>SendRequestVote(int term, uint candidateId, int lastLogIndex, int lastLogTerm)
@@ -136,9 +133,6 @@ namespace RaftCore.Connections.Implementations
         private async void SendTestConnection()
         {
 
-            // string[] address = baseURL.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
-            // await tcpClient.Connect(address[0], int.Parse(address[1]));
-            //  var replyMsg = await tcpClient.WriteLineAndGetReply("test", TimeSpan.FromSeconds(10));
             await client.Connect();
             await client.SendGetReply("test", TimeSpan.FromSeconds(10));
         }
@@ -152,44 +146,7 @@ namespace RaftCore.Connections.Implementations
                 return null;
             }
            return Util.DeserializeJson<Result<bool>>(res);
-            // Assumes valid input. One of:
-            // {"term":22,"value":false}
-            // {"value":true,"term":1}
-            //if (res == null) return null;
-            //var sep = res.Split(",");
-            //string strTerm;
-            //string strValue;
-
-            //if (sep[0][sep[0].Length - 1] == 'e')
-            //{
-            //    strValue = sep[0];
-            //    strTerm = sep[1];
-            //}
-            //else
-            //{
-            //    strTerm = sep[0];
-            //    strValue = sep[1];
-            //}
-            //strTerm.Trim('{');
-            //strTerm.Trim('}');
-            //strValue.Trim('{');
-            //strValue.Trim('}');
-
-            //int resultTerm;
-            //bool resultValue;
-
-            //if (strValue[8] == 'f')
-            //{
-            //    resultValue = false;
-            //}
-            //else
-            //{
-            //    resultValue = true;
-            //}
-
-            //resultTerm = int.Parse(strTerm.Substring(7, 1));
-
-            //return new Result<bool>(resultValue, resultTerm);
+            // 
         }
     }
 }

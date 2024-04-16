@@ -2,7 +2,6 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 
 namespace RaftCore.Connections.NodeServer.TcpServers
@@ -14,9 +13,17 @@ namespace RaftCore.Connections.NodeServer.TcpServers
 
         private readonly int port;
 
-        public string ServerIP { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int ServerPort { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string ServerIP { get ; set ; }
+        public int ServerPort { get; set; }
 
+        /// <summary>
+        /// 缓存区大小，默认10M
+        /// </summary>
+        public int BufferSize { get; set; } = 1024 * 1024 * 10;
+
+        /// <summary>
+        /// 接收数据
+        /// </summary>
         public event Action<TcpResponse> OnReceiveMessage;
         public TCPServer(int port)
         {
@@ -25,16 +32,22 @@ namespace RaftCore.Connections.NodeServer.TcpServers
          
         }
 
+       /// <summary>
+       /// 启动
+       /// </summary>
         public void Start()
         {
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, port);
             _socket.Bind(endPoint);
-        
             _socket.Listen(100); // 设定最多10个排队连接请求
             Task.Run(ListenClientConnect);
 
         
         }
+
+        /// <summary>
+        /// 接收连接
+        /// </summary>
         private void ListenClientConnect()
         {
             while (true)
@@ -47,12 +60,17 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                 Task.Run(() => { ReceiveMessage(clientSocket); });
             }
         }
+
+        /// <summary>
+        /// 接收数据
+        /// </summary>
+        /// <param name="clientSocket"></param>
         private async void ReceiveMessage(object clientSocket)
         {
             Socket myClientSocket = (Socket)clientSocket;
             byte[] _result = new byte[4];
-            Memory<byte> buffer = new Memory<byte>(new byte[1024*1024*10]);//10M
-            List<byte> data = new List<byte>(); 
+            Memory<byte> buffer = new Memory<byte>(new byte[BufferSize]);//10M
+           
             while (myClientSocket.Connected)
             {
                 try
@@ -66,10 +84,10 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                     long id = -1;
                     if (len < buffer.Length)
                     {
-                       //缓存接收
+                        //缓存接收
                         receiveNumber = await myClientSocket.ReceiveAsync(buffer);
                         if (receiveNumber == 0) return;
-                        receiveBytes = TcpDamil.GetMessage(buffer, receiveNumber, ref id);
+                        receiveBytes = TcpDelimiter.GetMessage(buffer, receiveNumber, ref id);
                     }
                     else
                     {
@@ -77,7 +95,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                         byte[] buf = new byte[len];
                         receiveNumber = await myClientSocket.ReceiveAsync(buf);
                         if (receiveNumber == 0) return;
-                        receiveBytes = TcpDamil.GetMessage(buf, ref id);
+                        receiveBytes = TcpDelimiter.GetMessage(buf, ref id);
                     }
 
                     // var bytes = TcpDamil.GetMessage(buf, ref id);
