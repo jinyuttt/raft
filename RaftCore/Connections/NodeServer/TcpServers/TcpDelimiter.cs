@@ -39,7 +39,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         public static byte[] BuildMessage(byte[] message,  long id)
         {
             byte[] result = new byte[message.Length + 4 + 8];
-            byte[] len = BitConverter.GetBytes(message.Length);
+            byte[] len = BitConverter.GetBytes(message.Length+8);
             byte[] ids = BitConverter.GetBytes(id);
             Array.Copy(len, result, 4);
             Array.Copy(ids, 0, result, 4, 8);
@@ -57,13 +57,13 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         {
 
             Memory<byte> memory = new Memory<byte>(message);
-            var bytes = memory.Slice(0, 8).ToArray();
+            var bytes = memory.Slice(4, 8).ToArray();
             id = BitConverter.ToInt64(bytes);
-            return memory.Slice(8).ToArray();
+            return memory.Slice(12).ToArray();
         }
 
 
-      
+
 
         /// <summary>
         /// 解析数据
@@ -72,10 +72,10 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// <param name="len">数据长度</param>
         /// <param name="id">解析ID</param>
         /// <returns></returns>
-        public static byte[] GetMessage(Memory<byte> memory,int len, ref long id)
+        public static byte[] GetMessage(Memory<byte> memory, int len,  ref long id,int start = 0)
         { 
-            id = BitConverter.ToInt64(memory.Slice(0,8).Span);
-            return memory.Slice(8, len-8).ToArray();
+            id = BitConverter.ToInt64(memory.Slice(start,8).Span);
+            return memory.Slice(start+8, len-8).ToArray();
         }
     }
 }

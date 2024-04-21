@@ -21,9 +21,9 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         public int Port { get; set; }
 
         /// <summary>
-        /// 缓存区大小，默认5M
+        /// 缓存区大小，1K
         /// </summary>
-        public int BufferSize { get; set; } = 1024 * 1024 * 5;
+        public int BufferSize { get; set; } = 1024 ;
         /// <summary>
         /// 是否连接
         /// </summary>
@@ -53,35 +53,27 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         private async void ReceiveMessage()
         {
 
-            byte[] recvLen = new byte[4];//接收数据长度
+           
             int bytesLen=-1;
-            Memory<byte> memory = new Memory<byte>(new byte[BufferSize]); 
+            byte[] buffer = new byte[BufferSize];
             long id = -1;
+            TcpPacketHandler tcpPacket = new TcpPacketHandler();
+            tcpPacket.PacketReceived += (p) =>
+            {
+                var msg = TcpDelimiter.GetMessage(p, ref id);
+                dic[id] = msg;
+            };
             while (true)
-            {   
-              
-                bytesLen =await clientSocket.ReceiveAsync(recvLen);
-                int len = BitConverter.ToInt32(recvLen);
-                if (len < BufferSize)
-                {
-                    bytesLen = await clientSocket.ReceiveAsync(memory);
-                    var msg = TcpDelimiter.GetMessage(memory, bytesLen, ref id);
-                    dic[id] = msg;
-                }
-                else
-                {
-                    byte[] recvBytes = new byte[len + 8];
-                   await clientSocket.ReceiveAsync(recvBytes);
-                    var msg = TcpDelimiter.GetMessage(recvBytes, ref id);
-                    dic[id] = msg;
-                }
-              
-                
-                if(!clientSocket.Connected)
+            {
+
+                bytesLen = await clientSocket.ReceiveAsync(buffer);
+                tcpPacket.ReceiveData(buffer, bytesLen);
+                if (!clientSocket.Connected)
                 {
                     break;
                 }
             }
+            tcpPacket = null;
 
         }
 
@@ -93,7 +85,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// <returns></returns>
         public async Task<byte[]> SendGetReply(byte[] data, TimeSpan timeout)
         {
-            byte[] buf = new byte[0];
+            byte[] buf = null ;
             if (clientSocket.Connected)
             {
                 long id = -1;
@@ -127,6 +119,10 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         {
             var tmp = Encoding.UTF8.GetBytes(data);
             var r = await this.SendGetReply(tmp, timeout);
+            if(r == null)
+            {
+                return null;
+            }
             return Encoding.UTF8.GetString(r);
         }
 

@@ -10,12 +10,18 @@ namespace RaftCore.Connections.Implementations
     /// <summary>
     /// Connects to nodes through a defined WEB API
     /// </summary>
-    public class APIRaftConnector : IRaftConnector {
+    public class APIRaftConnector : IRaftConnector
+    {
         /// <summary>
         /// ID matching an existing node's ID.
         /// </summary>
-        public uint NodeId { get; private set; }
+        public uint NodeId { get;  set; }
         private string baseURL { get; set; }
+
+       
+
+        public string BaseUrl => baseURL;
+
         private readonly HttpClient client = new HttpClient();
 
         /// <summary>

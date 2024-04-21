@@ -12,6 +12,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Reflection;
+using RaftCore.Connections.NodeServer.TcpServers;
+using System.Text;
 
 namespace RaftCore {
     /// <summary>
@@ -44,7 +47,7 @@ namespace RaftCore {
         /// <summary>
         /// Unsigned integer uniquely representing a node.
         /// </summary>
-        public uint NodeId { get; }
+        public uint NodeId { get { return _nodeId; } }
 
         /// <summary>
         /// State machine this node replicates.
@@ -59,9 +62,14 @@ namespace RaftCore {
         /// </summary>
        public List<LogEntry> Log { get; private set; }
 
-      
+        /// <summary>
+        /// 协议客户端
+        /// </summary>
+       public string Peer { get; set; }
 
         private readonly object thisLock = new object();
+
+        private uint _nodeId = 0;
 
         /// <summary>
         /// Current state of the node.
@@ -133,13 +141,14 @@ namespace RaftCore {
         /// </summary>
         /// <param name="nodeId">The node's ID</param>
         /// <param name="stateMachine"><see cref="IRaftStateMachine"/> to replicate</param>
-        public RaftNode(uint nodeId, IRaftStateMachine stateMachine) {
-            this.NodeId = nodeId;
+        public RaftNode(uint nodeId, IRaftStateMachine stateMachine)
+        {
+            _nodeId = nodeId;
             this.StateMachine = stateMachine;
             this.Log = new List<LogEntry>();
-        
 
-              electionTimer = new Timer(TriggerElection);
+
+            electionTimer = new Timer(TriggerElection);
             heartbeatTimer = new Timer(SendHeartbeats);
 
             NextIndex = new ConcurrentDictionary<uint, int>();
@@ -150,10 +159,93 @@ namespace RaftCore {
         /// Configures the node: adds the cluster object, calculates the election timeout and sets the initial state to Follower.
         /// </summary>
         /// <param name="cluster"><see cref="RaftCluster"/> instance containing all the nodes in the cluster</param>
-        public void Configure(RaftCluster cluster) {
+        public void Configure(RaftCluster cluster)
+        {
             this.Cluster = cluster;
             this.ElectionTimeoutMS = Cluster.CalculateElectionTimeoutMS();
             this.NodeState = NodeState.Follower;
+        }
+
+        private void DyAddNode()
+        {
+            
+            var lst = this.Cluster.Nodes;
+            if(lst != null)
+            {
+                IRaftConnector raftConnector= lst[0];
+                raftConnector.NodeId = this._nodeId;
+                IRaftConnector raft= Activator.CreateInstance(raftConnector.GetType(), 0u, Peer) as IRaftConnector;
+                if(raft!=null)
+                {
+                    raft.TestConnection();
+                    raft.MakeRequest($"addraftnode:{raftConnector.GetType().Assembly.FullName}:{raftConnector.GetType().FullName}:{NodeId}:{raftConnector.BaseUrl}");
+                }
+            }
+        }
+
+        private void AnsyAddNode(string node)
+        {
+           
+            string[] commands = node.Split(':');
+            //  object[]objects = new object[] { uint.Parse(commands[3]), commands[4]+":" + commands[4] };
+            StringBuilder builder = new StringBuilder();
+            for (int i = 4; i < commands.Length; i++)
+            {
+                builder.Append(commands[i]);
+                builder.Append(":");
+            }
+            builder.Remove(builder.Length - 1, 1);
+            var ty = Type.GetType(commands[2]);
+            IRaftConnector raftConnector = Activator.CreateInstance(ty, uint.Parse(commands[3]), builder.ToString()) as IRaftConnector;
+            if (raftConnector != null)
+            {
+                if(NodeId>10)
+                {
+
+                }
+                raftConnector.TestConnection();
+                if (this.Cluster.Nodes.Count > 0)
+                {
+                    var p = this.Cluster.Nodes.Find(p => p.NodeId == raftConnector.NodeId);
+                    if (p != null)
+                    {
+                        return;
+                    }
+                }
+                if(NodeId>10)
+                {
+
+                }
+                LogMessage($"{NodeId}  Received addnode: {raftConnector.NodeId}");
+                this.Cluster.AddNode(raftConnector);
+            }
+        }
+
+        /// <summary>
+        /// leader build
+        /// </summary>
+        /// <param name="node"></param>
+        private void BuildCommands(string node)
+        {
+            AnsyAddNode(node);
+            this.ResetLeaderState();//重置一次
+            var lst = this.Cluster.Nodes;
+            if (lst != null)
+            {
+               
+                for (int i = 0; i < lst.Count; i++)
+                {
+                    var raftConnector = lst[i];
+                   string cmd = $"addraftnode:{raftConnector.GetType().Assembly.FullName}:{raftConnector.GetType().FullName}:{raftConnector.NodeId}:{raftConnector.BaseUrl}";
+                  //  lock (thisLock)
+                    {
+                        //Log对象同步
+                        var entry = new LogEntry(CurrentTerm, Log.Count, cmd);
+                        Log.Add(entry);
+                    }
+                }
+            }
+           
         }
 
         /// <summary>
@@ -168,7 +260,13 @@ namespace RaftCore {
             {
                 throw new InvalidOperationException("You must configure the Server before you run it.");
             }
-            switch(this.NodeState) {
+            if (_nodeId == 0 && Cluster.Size > 0)
+            {
+                _nodeId = (uint)Util.GetId();
+                this.NodeState = NodeState.Candidate;//动态注册节点
+                Task.Run(() => DyAddNode());
+            }
+            switch (this.NodeState) {
                 case NodeState.Candidate:
                     StopHeartbeatTimer();
                     ResetElectionTimer();
@@ -203,23 +301,21 @@ namespace RaftCore {
         /// <returns>Returns a Result object containing the current term of the node and whether the request worked</returns>
         public Result<bool> AppendEntries(int term, uint leaderId, int prevLogIndex, int prevLogTerm, 
                                   List<LogEntry> entries, int leaderCommit) {
+
+            if (NodeState == NodeState.Stopped)
+            {
+                LogMessage($"{NodeId} recvice  LogEntry leaderId:{leaderId}");
+                return new Result<bool>(false, CurrentTerm);
+            }
+            if (term < this.CurrentTerm)
+            {
+                LogMessage("Received AppendEntries with outdated term. Declining.");
+                return new Result<bool>(false, CurrentTerm);
+            }
+
            
 
-
-                if (NodeState == NodeState.Stopped)
-                {
-                    return new Result<bool>(false, CurrentTerm);
-                }
-                if (term < this.CurrentTerm)
-                {
-                    LogMessage("Received AppendEntries with outdated term. Declining.");
-                    return new Result<bool>(false, CurrentTerm);
-                }
-
-            //
-
-
-            if (entries != null && Log.Count > 0 && Log[prevLogIndex].TermNumber != prevLogTerm)
+            if (entries != null && Log.Count > 0 &&Log.Count>prevLogIndex&& Log[prevLogIndex].TermNumber != prevLogTerm)
             {
                 // log doesn’t contain an entry at prevLogIndex
                 // whose term matches prevLogTerm
@@ -227,58 +323,71 @@ namespace RaftCore {
             }
 
             // If we get to here it means the one sending us a message is leader
-            StopHeartbeatTimer();
+                 StopHeartbeatTimer();
                 ResetElectionTimer();
                 CurrentTerm = term;
 
                 NodeState = NodeState.Follower;
                 LeaderId = leaderId;
 
-                if (entries != null)
-                {
+            if (entries != null)
+            {
+                
                 // If an existing entry conflicts with a new one (same index
                 // but different terms), delete the existing entry and all that
                 // follow it (§5.3)
-               // Log = Log.Take(entries[0].Index).ToList();
-                Log= Log.Take(entries[0].Index).ToList();
-             
+                // Log = Log.Take(entries[0].Index).ToList();
+                Log = Log.Take(entries[0].Index).ToList();
+
 
                 //// Append any new entries not already in the log
                 Log.AddRange(entries);
 
+
+
+                LogMessage("Node " + NodeId + " appending new entry " + entries[0].Command);
+            }
+            else
+            { // HEARTBEAT
+                LogMessage("Node " + NodeId + " received heartbeat from " + leaderId);
+            }
+
+
+            if (leaderCommit > CommitIndex)
+            {
                
-                  
-                    LogMessage("Node " + NodeId + " appending new entry " + entries[0].Command);
-                }
-                else
-                { // HEARTBEAT
-                    LogMessage("Node " + NodeId + " received heartbeat from " + leaderId);
-                }
+                //TODO: It gets here on heartbeats
+                LogMessage("Node " + NodeId + " applying entries");
+                // Instead of doing maths with leaderCommit and CommitIndex, could:
+                // If commitIndex > lastApplied:
+                // increment lastApplied, apply log[lastApplied] to state machine
+                var toApply = Log.Skip(CommitIndex + 1).Take(leaderCommit - CommitIndex).ToList();
 
-
-                if (leaderCommit > CommitIndex)
+                if (toApply.Count == 0)
                 {
-                    //TODO: It gets here on heartbeats
-                    LogMessage("Node " + NodeId + " applying entries");
-                    // Instead of doing maths with leaderCommit and CommitIndex, could:
-                    // If commitIndex > lastApplied:
-                    // increment lastApplied, apply log[lastApplied] to state machine
-                    var toApply = Log.Skip(CommitIndex + 1).Take(leaderCommit - CommitIndex).ToList();
-
-                    if (toApply.Count == 0)
-                    {
-                        LogMessage("Node " + NodeId + " failed applying entries");
-                        return new Result<bool>(false, CurrentTerm);
-                    }
-
-                    toApply.ForEach(x => StateMachine.Apply(x.Command));
-
-                    CommitIndex = Math.Min(leaderCommit, Log[Log.Count - 1].Index);
-
-                    LastApplied = CommitIndex;
+                    LogMessage("Node " + NodeId + " failed applying entries");
+                    return new Result<bool>(false, CurrentTerm);
                 }
+               
+                toApply.ForEach(x =>
+                {
+                    if (x.Command.StartsWith("addraftnode"))
+                    {
+                        AnsyAddNode(x.Command);
+                    }
+                    else
+                    {
+                        StateMachine.Apply(x.Command);
+                    }
+                }
+               );
 
-                return new Result<bool>(true, CurrentTerm);
+                CommitIndex = Math.Min(leaderCommit, Log[Log.Count - 1].Index);
+
+                LastApplied = CommitIndex;
+            }
+
+             return new Result<bool>(true, CurrentTerm);
             
         }
 
@@ -327,14 +436,19 @@ namespace RaftCore {
         public void MakeRequest(String command) {
             if (NodeState == NodeState.Leader) {
                 LogMessage("This node is the leader");
-              
-                lock (thisLock)
+                if (command.StartsWith("addraftnode"))
                 {
+                    LogMessage("leader recvice node add");
+                  
+                    Task.Run(() => { BuildCommands(command); });
+                    return;
+                }
+                //lock (thisLock)
+                //{
                     //Log对象同步
                     var entry = new LogEntry(CurrentTerm, Log.Count, command);
-                    Log.Add(entry);
-                   
-                }
+                    Log.Add(entry);   
+               // }
             }
             else if (NodeState == NodeState.Follower && LeaderId.HasValue) {
                 LogMessage("Redirecting to leader " + LeaderId + " by " + NodeId);
@@ -374,7 +488,10 @@ namespace RaftCore {
             Parallel.ForEach(nodes, nodeId =>
             {
                 var res = Cluster.RequestVoteFrom(nodeId, CurrentTerm, NodeId, Log.Count - 1, GetLastLogTerm());
-               
+                if (res == null)
+                {
+                    return;
+                }
                     CurrentTerm = res.Term;
 
                     if (res.Value)
@@ -489,7 +606,7 @@ namespace RaftCore {
                 List<LogEntry> entries;
                 int prevLogTerm =-1;
                 Result<bool> result = null;
-                lock (thisLock)
+              //  lock (thisLock)
                 { //这里Log对象需要同步
                     prevLogTerm = (Log.Count > 0) ? prevLogTerm = Log[prevLogIndex].TermNumber : 0;
                     //prevLogTerm = (Log.Count > 0) ? prevLogTerm = Log[prevLogIndex].TermNumber : 0;
@@ -503,8 +620,17 @@ namespace RaftCore {
                         // covers Log is empty or no new entries to replicate
                         entries = null;
                     }
-
+                    //if (entries != null)
+                    //{
+                    //    LogMessage($"Replication LogEntry to node:{nodeId},{nodes.Count}");
+                      
+                    //}
+                   
                     result = Cluster.SendAppendEntriesTo(nodeId, CurrentTerm, NodeId, prevLogIndex, prevLogTerm, entries, CommitIndex);
+                    if(result == null)
+                    {
+                        return;
+                    }
                     CurrentTerm = result.Term;
 
                     if (result.Value)
@@ -538,6 +664,14 @@ namespace RaftCore {
                 var replicatedIn = MatchIndex.Values.Count(x => x >= i) + 1;
                 if (Log[i].TermNumber == CurrentTerm && replicatedIn >= GetMajority()) {
                     CommitIndex = i;
+                    //
+                    if (Log[i].Command.StartsWith("addraftnode"))
+                    {
+                        AnsyAddNode(Log[i].Command);
+                        LastApplied = i;
+                       // LogMessage($"{NodeId}recvice node add");
+                        continue;
+                    }
                     StateMachine.Apply(Log[i].Command);
                     LastApplied = i;
                 }

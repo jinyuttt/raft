@@ -4,7 +4,6 @@ using RaftCore.Connections.Implementations;
 using RaftCore.StateMachine.Implementations;
 using Serilog.Formatting.Json;
 using Serilog;
-using System.Text.Json;
 using RaftCore.Connections.NodeServer;
 using RaftCore.Connections.NodeServer.TcpServers;
 using System.Text;
@@ -33,6 +32,8 @@ namespace ConsoleApp1
                  testTcp((uint)i, 8080+i);
                //test((uint)i, 8080 + i);
             }
+            Thread.Sleep(5000);
+            testTcpAddNode();
             while(true)
             {
                 Console.ReadLine();
@@ -93,6 +94,32 @@ namespace ConsoleApp1
 
         }
 
+
+      
+        static void testTcpAddNode()
+        {
+            Task.Run(() =>
+            {
+                var cluster = new RaftCluster();
+                cluster.AddNode(new TCPRaftConnector(0, "127.0.0.1:8084"));
+                var node = new RaftNode(0, new NumeralStateMachine());
+                node.Peer = "127.0.0.1:8081";
+                NetWorkServer.CreateTcpServer(node, 8084);
+                node.Configure(cluster);
+                node.Run();
+                dic[8084.ToString()] = node;
+            });
+            //Task.Run(() =>
+            //{
+            //    while(true) {
+            //        Thread.Sleep(3000);
+            //      var node = dic[8084.ToString()];
+            //        Console.WriteLine(node.Cluster.Nodes.Count);
+            //    }  
+            
+               
+            //});
+        }
         static async void testtcp()
         {
             TCPServer server = new TCPServer(8081);

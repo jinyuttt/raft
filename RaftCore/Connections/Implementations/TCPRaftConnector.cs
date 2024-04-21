@@ -12,8 +12,12 @@ namespace RaftCore.Connections.Implementations
 
         readonly TCPClient client = new TCPClient();
 
-        public uint NodeId { get; private set; }
+        public uint NodeId { get;  set; }
         private string baseURL { get; set; }
+
+  
+        public string BaseUrl => baseURL;
+
         public TCPRaftConnector(uint nodeId, string baseURL)
         {
             NodeId = nodeId;
@@ -60,7 +64,7 @@ namespace RaftCore.Connections.Implementations
         {
 
             var req = new Dictionary<string, string> { { "request", command } };
-            var reqj = Util.SerializeJson(req);
+            var reqj = Util.Serialize(req);
             var reqmsg = Util.Serialize(new TcpMessage() { Cmd = "makerequest", Content = reqj });
             var rsp = await client.SendGetReply(reqmsg, TimeSpan.FromSeconds(10));
         }
@@ -78,7 +82,7 @@ namespace RaftCore.Connections.Implementations
             };
                 Result<bool>  r = null;
               
-                    var command = Util.SerializeJson(req);
+                    var command = Util.Serialize(req);
                     var tmp = Util.Serialize(new TcpMessage() { Cmd = "requestvote", Content = command });
                    var   ret = await client.SendGetReply(tmp, TimeSpan.FromSeconds(20));
                 //
@@ -104,16 +108,17 @@ namespace RaftCore.Connections.Implementations
 
         private async Task<Result<bool>> SendAppendEntries(int term, uint leaderId, int prevLogIndex, int prevLogTerm, List<LogEntry> entries, int leaderCommit)
         {
-        //    object[] entriesDict = null;
-        //    if (entries != null)
-        //    {
-        //        entriesDict = new object[entries.Count];
-        //        for (int i = 0; i < entries.Count; i++)
-        //        {
-        //            entriesDict[i] = new { term = entries[i].TermNumber, index = entries[i].Index, command = entries[i].Command };
-        //        }
-        //    }
-            var req = new Dictionary<string, string>
+            //    object[] entriesDict = null;
+            //    if (entries != null)
+            //    {
+            //        entriesDict = new object[entries.Count];
+            //        for (int i = 0; i < entries.Count; i++)
+            //        {
+            //            entriesDict[i] = new { term = entries[i].TermNumber, index = entries[i].Index, command = entries[i].Command };
+            //        }
+            //    }
+
+                var req = new Dictionary<string, string>
             {
                { "term", term.ToString() },
                { "leaderId", leaderId.ToString() },
@@ -122,11 +127,14 @@ namespace RaftCore.Connections.Implementations
                { "entries",entries==null?null:Util.SerializeJson(entries) },
                { "leaderCommit", leaderCommit.ToString() }
             };
-                var command = Util.SerializeJson(req);
+                var command = Util.Serialize(req);
                 var tmp = Util.Serialize(new TcpMessage() { Cmd = "appendentries", Content = command });
-                var ret= await client.SendGetReply(tmp, TimeSpan.FromSeconds(10));
+         //   Console.WriteLine(command);
+                var ret = await client.SendGetReply(tmp, TimeSpan.FromSeconds(10));
 
-            return Util.Deserialize<Result<bool>>(ret);
+                return Util.Deserialize<Result<bool>>(ret);
+            
+          
 
         }
 

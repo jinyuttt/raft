@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 
 namespace RaftCore.Connections.NodeServer.TcpServers
@@ -17,9 +18,9 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         public int ServerPort { get; set; }
 
         /// <summary>
-        /// 缓存区大小，默认10M
+        /// 缓存区大小，默认1M
         /// </summary>
-        public int BufferSize { get; set; } = 1024 * 1024 * 10;
+        public int BufferSize { get; set; } = 1024 * 1024 * 1;
 
         /// <summary>
         /// 接收数据
@@ -57,9 +58,50 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                 //receiveThread.IsBackground = true;
                 //receiveThread.Name=port.ToString();
                 //receiveThread.Start(clientSocket);
-                Task.Run(() => { ReceiveMessage(clientSocket); });
+              
+                Task.Run(() => { ReceiveBufferMessage(clientSocket); });
             }
         }
+
+        private async void ReceiveBufferMessage(object clientSocket)
+        {
+            Socket myClientSocket = (Socket)clientSocket;
+            TcpPacketHandler tcpPacket = new TcpPacketHandler();
+            tcpPacket.PacketReceived += async (p) => { 
+                long id = -1;
+                byte[] receiveBytes = null;
+                receiveBytes = TcpDelimiter.GetMessage(p,  ref id);
+                if (receiveBytes != null)
+                {
+                    TcpResponse tcpResponse = new TcpResponse(receiveBytes, myClientSocket);
+                    tcpResponse.DataId = id;
+                    if (OnReceiveMessage != null)
+                    {
+                        await Task.Run(() => OnReceiveMessage(tcpResponse));
+                    }
+                }
+
+            };
+            byte[] buffer = new byte[BufferSize];
+            while (myClientSocket.Connected)
+            {
+                try
+                {
+                    //通过clientSocket接收数据  
+                    int receiveNumber = await myClientSocket.ReceiveAsync(buffer);
+                    tcpPacket.ReceiveData(buffer, receiveNumber);
+                   
+
+                }
+                catch (Exception ex)
+                {
+                    myClientSocket.Close();//关闭Socket并释放资源
+
+                    break;
+                }
+            }
+        }
+
 
         /// <summary>
         /// 接收数据
@@ -85,10 +127,21 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                     if (len < buffer.Length)
                     {
                         //缓存接收
-                        receiveNumber = await myClientSocket.ReceiveAsync(buffer);
-                        if (receiveNumber == 0) return;
-                        receiveBytes = TcpDelimiter.GetMessage(buffer, receiveNumber, ref id);
+                        int currrn = 0;
+                        while (currrn < len)
+                        {
+                            receiveNumber = await myClientSocket.ReceiveAsync(buffer);
+                            if (receiveNumber == 0) return;
+
+                            while (receiveNumber < len)
+                            {
+                                receiveNumber = await myClientSocket.ReceiveAsync(buffer);
+                            }
+                        }
                     }
+
+                    // receiveBytes = TcpDelimiter.GetMessage(buffer, receiveNumber, ref id);
+
                     else
                     {
                         //超过缓存，数据接收
@@ -119,6 +172,8 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                 }
             }
         }
+  
+    
     }
 
   

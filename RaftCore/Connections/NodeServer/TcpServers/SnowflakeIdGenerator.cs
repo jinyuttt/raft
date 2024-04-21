@@ -5,7 +5,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
     public class SnowflakeIdGenerator
     {
         //起始的时间戳
-    private static readonly long START_STMP = 1480166465631L;
+        private static readonly long START_STMP = 1480166465631L;
 
         //每一部分占用的位数
         private static readonly int SEQUENCE_BIT = 12; //序列号占用的位数
@@ -31,7 +31,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         //private static readonly Lazy<IdWorker> lazy = new Lazy<IdWorker>(() => new IdWorker());
         //public static IdWorker Singleton { get { return lazy.Value; } }
         public SnowflakeIdGenerator() { }
-      //  #endregion
+        //  #endregion
 
         public SnowflakeIdGenerator(long cid, long mid)
         {

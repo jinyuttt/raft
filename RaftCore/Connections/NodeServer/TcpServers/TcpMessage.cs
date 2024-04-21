@@ -4,6 +4,6 @@
     {
         public string Cmd { get; set; }
 
-        public string Content { get; set; }
+        public byte[] Content { get; set; }
     }
 }

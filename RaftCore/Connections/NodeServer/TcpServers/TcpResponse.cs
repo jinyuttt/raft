@@ -40,7 +40,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// </summary>
         public void Send()
         {
-            var by = TcpDelimiter.BuildMessage(Data, DataId);
+           var by = TcpDelimiter.BuildMessage(Data, DataId);
             mySocket.Send(by);
         }
 

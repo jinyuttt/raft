@@ -7,10 +7,14 @@ namespace RaftCore.Connections {
     /// Defines how to connect and interact with a node.
     /// </summary>
     public interface IRaftConnector {
+
+       
+
+        string BaseUrl { get; }
         /// <summary>
         /// ID uniquely identifying the node this <see cref="IRaftConnector"/> connects to.
         /// </summary>
-        uint NodeId { get; }
+        uint NodeId { get; set; }
 
         /// <summary>
         /// Calls the MakeRequest method on the node.

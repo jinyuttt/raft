@@ -6,12 +6,17 @@ namespace RaftCore.Connections.Implementations {
     /// <summary>
     /// Simple object connector, directly communicates to nodes in memory
     /// </summary>
-    public class ObjectRaftConnector : IRaftConnector {
+    public class ObjectRaftConnector : IRaftConnector
+    {
         /// <summary>
         /// ID matching an existing node's ID.
         /// </summary>
-        public uint NodeId { get; private set; }
+        public uint NodeId { get;  set; }
         private RaftNode Node { get; set; }
+
+        public string NetName =>"object";
+
+        public string BaseUrl => throw new NotImplementedException();
 
         /// <summary>
         /// Initializes a connector with nodes in memory.
