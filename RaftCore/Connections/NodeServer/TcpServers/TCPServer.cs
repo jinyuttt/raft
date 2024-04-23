@@ -2,7 +2,6 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 
 
 namespace RaftCore.Connections.NodeServer.TcpServers
@@ -20,7 +19,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// <summary>
         /// 缓存区大小，默认1M
         /// </summary>
-        public int BufferSize { get; set; } = 1024 * 1024 * 1;
+        public int BufferSize { get; set; } = 1024*1024;
 
         /// <summary>
         /// 接收数据
@@ -40,7 +39,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         {
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, port);
             _socket.Bind(endPoint);
-            _socket.Listen(100); // 设定最多10个排队连接请求
+            _socket.Listen(100); // 设定最多100个排队连接请求
             Task.Run(ListenClientConnect);
 
         
@@ -100,78 +99,79 @@ namespace RaftCore.Connections.NodeServer.TcpServers
                     break;
                 }
             }
+            tcpPacket = null;
         }
 
 
-        /// <summary>
-        /// 接收数据
-        /// </summary>
-        /// <param name="clientSocket"></param>
-        private async void ReceiveMessage(object clientSocket)
-        {
-            Socket myClientSocket = (Socket)clientSocket;
-            byte[] _result = new byte[4];
-            Memory<byte> buffer = new Memory<byte>(new byte[BufferSize]);//10M
+        ///// <summary>
+        ///// 接收数据
+        ///// </summary>
+        ///// <param name="clientSocket"></param>
+        //private async void ReceiveMessage(object clientSocket)
+        //{
+        //    Socket myClientSocket = (Socket)clientSocket;
+        //    byte[] _result = new byte[4];
+        //    Memory<byte> buffer = new Memory<byte>(new byte[BufferSize]);//10M
            
-            while (myClientSocket.Connected)
-            {
-                try
-                {
-                    //通过clientSocket接收数据  
-                    byte[] receiveBytes = null;
-                    int receiveNumber = await myClientSocket.ReceiveAsync(_result);
-                    if (receiveNumber == 0)
-                        return;
-                    int len = BitConverter.ToInt32(_result);
-                    long id = -1;
-                    if (len < buffer.Length)
-                    {
-                        //缓存接收
-                        int currrn = 0;
-                        while (currrn < len)
-                        {
-                            receiveNumber = await myClientSocket.ReceiveAsync(buffer);
-                            if (receiveNumber == 0) return;
+        //    while (myClientSocket.Connected)
+        //    {
+        //        try
+        //        {
+        //            //通过clientSocket接收数据  
+        //            byte[] receiveBytes = null;
+        //            int receiveNumber = await myClientSocket.ReceiveAsync(_result);
+        //            if (receiveNumber == 0)
+        //                return;
+        //            int len = BitConverter.ToInt32(_result);
+        //            long id = -1;
+        //            if (len < buffer.Length)
+        //            {
+        //                //缓存接收
+        //                int currrn = 0;
+        //                while (currrn < len)
+        //                {
+        //                    receiveNumber = await myClientSocket.ReceiveAsync(buffer);
+        //                    if (receiveNumber == 0) return;
 
-                            while (receiveNumber < len)
-                            {
-                                receiveNumber = await myClientSocket.ReceiveAsync(buffer);
-                            }
-                        }
-                    }
+        //                    while (receiveNumber < len)
+        //                    {
+        //                        receiveNumber = await myClientSocket.ReceiveAsync(buffer);
+        //                    }
+        //                }
+        //            }
 
-                    // receiveBytes = TcpDelimiter.GetMessage(buffer, receiveNumber, ref id);
+        //            // receiveBytes = TcpDelimiter.GetMessage(buffer, receiveNumber, ref id);
 
-                    else
-                    {
-                        //超过缓存，数据接收
-                        byte[] buf = new byte[len];
-                        receiveNumber = await myClientSocket.ReceiveAsync(buf);
-                        if (receiveNumber == 0) return;
-                        receiveBytes = TcpDelimiter.GetMessage(buf, ref id);
-                    }
+        //            else
+        //            {
+        //                //超过缓存，数据接收
+        //                byte[] buf = new byte[len];
+        //                receiveNumber = await myClientSocket.ReceiveAsync(buf);
+        //                if (receiveNumber == 0) return;
+        //                receiveBytes = TcpDelimiter.GetMessage(buf, ref id);
+        //            }
 
-                    // var bytes = TcpDamil.GetMessage(buf, ref id);
-                    if (receiveBytes != null)
-                    {
-                        TcpResponse tcpResponse = new TcpResponse(receiveBytes, myClientSocket);
-                        tcpResponse.DataId = id;
-                        if (OnReceiveMessage != null)
-                        {
-                            await Task.Run(() => OnReceiveMessage(tcpResponse));
-                        }
+        //            // var bytes = TcpDamil.GetMessage(buf, ref id);
+        //            if (receiveBytes != null)
+        //            {
+        //                TcpResponse tcpResponse = new TcpResponse(receiveBytes, myClientSocket);
+        //                tcpResponse.DataId = id;
+        //                if (OnReceiveMessage != null)
+        //                {
+        //                    await Task.Run(() => OnReceiveMessage(tcpResponse));
+        //                }
 
-                    }
+        //            }
 
-                }
-                catch (Exception ex)
-                {
-                    myClientSocket.Close();//关闭Socket并释放资源
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            myClientSocket.Close();//关闭Socket并释放资源
 
-                    break;
-                }
-            }
-        }
+        //            break;
+        //        }
+        //    }
+        //}
   
     
     }

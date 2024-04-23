@@ -21,9 +21,9 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         public int Port { get; set; }
 
         /// <summary>
-        /// 缓存区大小，1K
+        /// 缓存区大小，1M
         /// </summary>
-        public int BufferSize { get; set; } = 1024 ;
+        public int BufferSize { get; set; } = 1024*1024 ;
         /// <summary>
         /// 是否连接
         /// </summary>

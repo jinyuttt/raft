@@ -16,8 +16,10 @@ namespace ConsoleApp1
         static ConcurrentDictionary<string, RaftNode> dic= new ConcurrentDictionary<string, RaftNode>();
         static void Main(string[] args)
         {
+        
             Console.WriteLine("Hello, World!");
-          //  testtcp();
+          // testtcp();
+           // Console.Read();
             Log.Logger = new LoggerConfiguration().MinimumLevel.Information()
             //  .Enrich.WithEnvironmentUserName()
              // .Enrich.WithInfo()
@@ -122,9 +124,11 @@ namespace ConsoleApp1
         }
         static async void testtcp()
         {
+            TcpPacketHandler.MaxSize = 10;
             TCPServer server = new TCPServer(8081);
-            server.OnReceiveMessage += (s) => {
-               var m= Encoding.UTF8.GetString(s.GetMsg());
+            server.OnReceiveMessage += (s) =>
+            {
+                var m = Encoding.UTF8.GetString(s.GetMsg());
                 Console.WriteLine(m);
                 s.Data = Encoding.UTF8.GetBytes("hello");
                 s.Send();
@@ -135,10 +139,24 @@ namespace ConsoleApp1
             tCPClient.Port = 8081;
             tCPClient.ServerIP = "127.0.0.1";
             tCPClient.Connect();
-           var r= tCPClient.SendGetReply("hi!",TimeSpan.FromSeconds(10));
-          
-            Console.WriteLine(r);
+            //
+            StringBuilder builder = new StringBuilder();
+            for(int i=0;i<20;i++)
+            {
+                builder.Append("ddrtyyuujkuiuiyyuuhi");
+            }
+            for (int i = 0; i < 5; i++)
+            {
+                var r = tCPClient.SendGetReply(builder.ToString(), TimeSpan.FromSeconds(10));
+
+                Console.WriteLine(r);
+                Thread.Sleep(1000);
+            }
+            var rm = tCPClient.SendGetReply("hi!", TimeSpan.FromSeconds(10));
+
+            Console.WriteLine(rm);
         }
+        
 
        
       

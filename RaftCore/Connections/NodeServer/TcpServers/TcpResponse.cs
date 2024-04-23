@@ -3,6 +3,10 @@ using System.Text;
 
 namespace RaftCore.Connections.NodeServer.TcpServers
 {
+
+    /// <summary>
+    /// 接收
+    /// </summary>
     public class TcpResponse
     {
 
@@ -51,7 +55,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         public void Send(string msg)
         {
            Data=Encoding.UTF8.GetBytes(msg);
-            this.Send();
+           this.Send();
         }
 
         /// <summary>

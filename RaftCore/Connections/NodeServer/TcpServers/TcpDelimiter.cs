@@ -7,6 +7,8 @@ namespace RaftCore.Connections.NodeServer.TcpServers
     /// </summary>
     internal class TcpDelimiter
     {
+        static readonly byte[] tail = new byte[] {0xAA,0xFF,0xBB,0xCF};
+
         /// <summary>
         /// 雪花算法
         /// </summary>
@@ -20,13 +22,15 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// <returns></returns>
         public static byte[] BuildMessage(byte[] message,ref long id)
         {
-            byte[] result = new byte[message.Length + 4 + 8];
-            byte[] len = BitConverter.GetBytes(message.Length+8);
+          
+            byte[] result = new byte[message.Length + 4 + 8+4];
+            byte[] len = BitConverter.GetBytes(message.Length+12);//消息长度算了校验字节
             id = snowflake.NextId();
             byte[] ids = BitConverter.GetBytes(id);
             Array.Copy(len, result, 4);
             Array.Copy(ids, 0, result, 4, 8);
             Array.Copy(message, 0, result, 8 + 4, message.Length);
+            Array.Copy(tail, 0, result, 8 + 4+message.Length,4);
             return result;
         }
 
@@ -38,12 +42,13 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         /// <returns></returns>
         public static byte[] BuildMessage(byte[] message,  long id)
         {
-            byte[] result = new byte[message.Length + 4 + 8];
-            byte[] len = BitConverter.GetBytes(message.Length+8);
+            byte[] result = new byte[message.Length + 4 + 8+4];
+            byte[] len = BitConverter.GetBytes(message.Length+12);//消息长度算了校验字节
             byte[] ids = BitConverter.GetBytes(id);
             Array.Copy(len, result, 4);
             Array.Copy(ids, 0, result, 4, 8);
             Array.Copy(message, 0, result, 8 + 4, message.Length);
+            Array.Copy(tail, 0, result, 8 + 4 + message.Length, 4);
             return result;
         }
 
@@ -57,9 +62,9 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         {
 
             Memory<byte> memory = new Memory<byte>(message);
-            var bytes = memory.Slice(4, 8).ToArray();
+            var bytes = memory.Slice(4, 8).ToArray();//去头 长度
             id = BitConverter.ToInt64(bytes);
-            return memory.Slice(12).ToArray();
+            return memory.Slice(12,message.Length-16).ToArray();//去尾 校验字节
         }
 
 

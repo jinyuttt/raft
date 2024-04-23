@@ -9,7 +9,7 @@ namespace RaftCore.Connections.NodeServer.TcpServers
         static Util(){
          
         }
-      static  SnowflakeIdGenerator snowflakeIdGenerator = new SnowflakeIdGenerator();
+       static SnowflakeIdGenerator snowflakeIdGenerator = new SnowflakeIdGenerator();
         public static long GetId()
         {
           return  snowflakeIdGenerator.NextId();
